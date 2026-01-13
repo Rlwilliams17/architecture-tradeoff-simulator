@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture Tradeoff Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e27;
+            color: #e0e6ed;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-overlay > * {
+            pointer-events: auto;
+        }
+
+        /* Help Button */
+        .help-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            z-index: 1000;
+            transition: transform 0.2s;
+        }
+
+        .help-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Help Modal */
+        .help-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .help-modal.show {
+            display: flex;
+        }
+
+        .help-content {
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+        }
+
+        .help-content h2 {
+            font-size: 28px;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+
+        .help-section h3 {
+            font-size: 18px;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .help-section p, .help-section ul {
+            font-size: 15px;
+            color: #94a3b8;
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+
+        .help-section ul {
+            padding-left: 24px;
+        }
+
+        .help-section li {
+            margin-bottom: 8px;
+        }
+
+        .help-term {
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid #6366f1;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+
+        .help-term strong {
+            color: #e2e8f0;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .emoji-icon {
+            font-size: 24px;
+        }
+
+        .close-help-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        /* Mobile Toggle Button */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
+            z-index: 100;
+        }
+
+        /* Left Panel */
+        .control-panel {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            width: 320px;
+            max-height: calc(100vh - 40px);
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease;
+        }
+
+        .control-panel h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .control-panel .subtitle {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .toggle-item:hover {
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        .toggle-item label {
+            font-size: 14px;
+            color: #e2e8f0;
+            cursor: pointer;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #334155;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #6366f1;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .slider-item {
+            margin-bottom: 16px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .slider-value {
+            color: #6366f1;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #334155;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            border: none;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        select:hover {
+            border-color: rgba(99, 102, 241, 0.6);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        /* Metrics Cards */
+        .metrics-container {
+            position: absolute;
+            right: 20px;
+            top: 80px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            width: 400px;
+        }
+
+        .metric-card {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: all 0.5s ease;
+        }
+
+        .metric-unit {
+            font-size: 14px;
+            color: #64748b;
+            margin-left: 4px;
+        }
+
+        /* Details Drawer */
+        .details-drawer {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            width: 400px;
+            max-height: 500px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: translateY(120%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .details-drawer.open {
+            transform: translateY(0);
+        }
+
+        .details-drawer h2 {
+            font-size: 18px;
+            margin-bottom: 6px;
+            color: #e2e8f0;
+        }
+
+        .details-drawer .role {
+            font-size: 12px;
+            color: #6366f1;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .details-section {
+            margin-bottom: 16px;
+        }
+
+        .details-section h3 {
+            font-size: 13px;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .details-section p, .details-section ul {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.6;
+        }
+
+        .details-section ul {
+            padding-left: 20px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 32px;
+            height: 32px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 50%;
+            color: #f87171;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: rgba(239, 68, 68, 0.4);
+            transform: rotate(90deg);
+        }
+
+        /* Assumptions */
+        .assumptions {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .assumptions-toggle {
+            font-size: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .assumptions-toggle:hover {
+            color: #cbd5e1;
+        }
+
+        .assumptions-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.6;
+            margin-top: 8px;
+        }
+
+        .assumptions-content.open {
+            max-height: 500px;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            pointer-events: none;
+            font-size: 12px;
+            max-width: 250px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip h4 {
+            font-size: 13px;
+            color: #e2e8f0;
+            margin-bottom: 6px;
+        }
+
+        .tooltip p {
+            color: #94a3b8;
+            line-height: 1.4;
+            margin-bottom: 4px;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .help-btn {
+                width: 44px;
+                height: 44px;
+                font-size: 20px;
+            }
+
+            .help-content {
+                padding: 24px;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .control-panel {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+                transform: translateX(-100%);
+                z-index: 50;
+            }
+
+            .control-panel.mobile-open {
+                transform: translateX(0);
+            }
+
+            .metrics-container {
+                position: fixed;
+                width: calc(100% - 40px);
+                left: 20px;
+                top: 80px;
+                right: 20px;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .metric-card {
+                padding: 12px;
+            }
+
+            .metric-value {
+                font-size: 20px;
+            }
+
+            .metric-label {
+                font-size: 10px;
+            }
+
+            .details-drawer {
+                width: calc(100% - 40px);
+                left: 20px;
+                right: 20px;
+                bottom: 20px;
+                max-height: 60vh;
+            }
+
+            .tooltip {
+                display: none;
+            }
+        }
+
+        /* Tablet */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .control-panel {
+                width: 280px;
+            }
+
+            .metrics-container {
+                width: 340px;
+            }
+
+            .details-drawer {
+                width: 340px;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #6366f1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="ui-overlay">
+        <!-- Help Button -->
+        <button class="help-btn" id="help-btn">?</button>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle">☰</button>
+
+        <!-- Control Panel -->
+        <div class="control-panel" id="control-panel">
+            <h1>Architecture Tradeoff Simulator</h1>
+            <p class="subtitle">Explore system design decisions in real-time</p>
+
+            <div class="section">
+                <div class="section-title">Scenario Presets</div>
+                <select id="preset-select">
+                    <option value="">Custom Configuration</option>
+                    <option value="startup">Startup MVP</option>
+                    <option value="ecommerce">Ecommerce Peak</option>
+                    <option value="b2b">B2B Enterprise</option>
+                    <option value="latency">Latency Sensitive</option>
+                </select>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Components</div>
+                <div class="toggle-group">
+                    <div class="toggle-item">
+                        <label for="toggle-cdn">CDN</label>
+                        <div class="toggle-switch active" id="toggle-cdn" data-state="true"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="toggle-cache">Cache Layer</label>
+                        <div class="toggle-switch active" id="toggle-cache" data-state="true"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="toggle-queue">Message Queue</label>
+                        <div class="toggle-switch active" id="toggle-queue" data-state="true"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="toggle-multiregion">Multi-Region</label>
+                        <div class="toggle-switch" id="toggle-multiregion" data-state="false"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="toggle-replicas">Read Replicas</label>
+                        <div class="toggle-switch" id="toggle-replicas" data-state="false"></div>
+                    </div>
+                    <div class="toggle-item">
+                        <label for="toggle-ratelimit">Rate Limiting</label>
+                        <div class="toggle-switch" id="toggle-ratelimit" data-state="false"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Traffic Parameters</div>
+                <div class="slider-item">
+                    <div class="slider-label">
+                        <span>Requests/sec</span>
+                        <span class="slider-value" id="traffic-value">500</span>
+                    </div>
+                    <input type="range" id="traffic-slider" min="10" max="5000" value="500" step="10">
+                </div>
+                <div class="slider-item">
+                    <div class="slider-label">
+                        <span>Payload Size</span>
+                        <span class="slider-value" id="payload-value">50 KB</span>
+                    </div>
+                    <input type="range" id="payload-slider" min="1" max="2048" value="50" step="1">
+                </div>
+                <div class="slider-item">
+                    <div class="slider-label">
+                        <span>Cache Hit Rate</span>
+                        <span class="slider-value" id="cachehit-value">70%</span>
+                    </div>
+                    <input type="range" id="cachehit-slider" min="0" max="95" value="70" step="5">
+                </div>
+            </div>
+
+            <button class="btn" id="reset-btn">Reset Camera</button>
+
+            <div class="assumptions">
+                <div class="assumptions-toggle" id="assumptions-toggle">
+                    <span>▶</span>
+                    <span>View Calculation Assumptions</span>
+                </div>
+                <div class="assumptions-content" id="assumptions-content">
+                    <p><strong>Latency:</strong> Base 20ms + CDN(-10ms) + Cache(-8ms) + DB(15ms) + Queue(5ms) + Replicas(+5ms cross-region) + Traffic multiplier</p>
+                    <p><strong>Cost:</strong> $50 base + Traffic($0.001/req) + CDN($200) + Cache($150) + DB($300) + Replicas($400) + Queue($100) + Multi-region(2x)</p>
+                    <p><strong>Reliability:</strong> Base 85 + CDN(+5) + Cache(+3) + Replicas(+7) + Multi-region(+10) - Traffic penalty</p>
+                    <p><strong>Complexity:</strong> 20 + Components(+10-15 each) + Multi-region(+20) + Rate limiting(+8)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-container">
+            <div class="metric-card">
+                <div class="metric-label">P95 Latency</div>
+                <div class="metric-value" id="metric-latency">45<span class="metric-unit">ms</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Monthly Cost</div>
+                <div class="metric-value" id="metric-cost">$850</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Reliability</div>
+                <div class="metric-value" id="metric-reliability">93<span class="metric-unit">/100</span></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Complexity</div>
+                <div class="metric-value" id="metric-complexity">65<span class="metric-unit">/100</span></div>
+            </div>
+        </div>
+
+        <!-- Details Drawer -->
+        <div class="details-drawer" id="details-drawer">
+            <div class="close-btn" id="close-drawer">×</div>
+            <h2 id="drawer-title">Component Name</h2>
+            <div class="role" id="drawer-role">Role</div>
+            <div class="details-section">
+                <h3>Why It Exists</h3>
+                <p id="drawer-why"></p>
+            </div>
+            <div class="details-section">
+                <h3>Common Pitfalls</h3>
+                <ul id="drawer-pitfalls"></ul>
+            </div>
+            <div class="details-section">
+                <h3>Key Signals/Metrics</h3>
+                <ul id="drawer-signals"></ul>
+            </div>
+            <div class="details-section">
+                <h3>Mitigation Strategies</h3>
+                <p id="drawer-mitigation"></p>
+            </div>
+        </div>
+
+        <!-- Tooltip -->
+        <div class="tooltip" id="tooltip">
+            <h4 id="tooltip-title"></h4>
+            <p id="tooltip-desc"></p>
+            <p id="tooltip-hint"></p>
+        </div>
+
+        <!-- Help Modal -->
+        <div class="help-modal" id="help-modal">
+            <div class="help-content">
+                <h2>📚 How This Tool Works</h2>
+                
+                <div class="help-section">
+                    <h3><span class="emoji-icon">🎯</span> What Is This?</h3>
+                    <p>Think of this like a video game where you're building a city, but instead of buildings, you're building a website or app's "behind-the-scenes" system. You get to see what happens when you add different pieces and how they affect speed, cost, and reliability!</p>
+                </div>
+
+                <div class="help-section">
+                    <h3><span class="emoji-icon">🎮</span> How to Use It</h3>
+                    <p><strong>Step 1:</strong> Look at the 3D scene in the middle. Those colorful boxes are parts of your system, and the glowing balls moving between them are like "requests" (people asking for information).</p>
+                    <p><strong>Step 2:</strong> Use the panel on the left to turn parts ON or OFF and move sliders to change settings.</p>
+                    <p><strong>Step 3:</strong> Watch the 4 numbers in the top-right change! These show you how your choices affect everything.</p>
+                    <p><strong>Step 4:</strong> Click on any colorful box to learn what it does and what problems it can have.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3><span class="emoji-icon">🔤</span> What Do These Words Mean?</h3>
+                    
+                    <div class="help-term">
+                        <strong>🌐 CDN (Content Delivery Network)</strong>
+                        Like having copies of your homework closer to your teacher so you can hand it in faster. It stores copies of your website in different cities around the world.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>💾 Cache</strong>
+                        Like your brain remembering the answer to 2+2 instead of calculating it every time. It remembers common answers so it doesn't have to look them up again.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>📬 Message Queue</strong>
+                        Like a line at the cafeteria - tasks wait their turn to be done. Helps when you have too many things happening at once.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>🌍 Multi-Region</strong>
+                        Having backup systems in different countries. If one breaks, another can take over!
+                    </div>
+
+                    <div class="help-term">
+                        <strong>📚 Read Replicas</strong>
+                        Like making photocopies of a popular library book so more people can read it at the same time.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>🚦 Rate Limiting</strong>
+                        Like a bouncer at a club - only lets a certain number of people in at once so it doesn't get too crowded.
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3><span class="emoji-icon">📊</span> The 4 Important Numbers</h3>
+                    
+                    <div class="help-term">
+                        <strong>⚡ Latency (Speed)</strong>
+                        How long it takes for someone to get their answer. Lower = faster = better! Like how fast you can pass a note in class.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>💰 Cost</strong>
+                        How much money you pay each month to run everything. More fancy parts = more expensive, like buying more toys costs more money.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>✅ Reliability</strong>
+                        How often your system works correctly without breaking. Higher = better! Like how your favorite toy breaks less than a cheap one.
+                    </div>
+
+                    <div class="help-term">
+                        <strong>🧩 Complexity</strong>
+                        How hard it is to build and fix your system. Lower = simpler = easier! Like building with 10 LEGO pieces vs 1000 pieces.
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3><span class="emoji-icon">🎪</span> Try These Fun Experiments!</h3>
+                    <ul>
+                        <li><strong>The Speed Test:</strong> Turn ON CDN and Cache, set traffic to LOW. Watch your latency drop super fast!</li>
+                        <li><strong>Black Friday:</strong> Choose "Ecommerce Peak" preset and watch what happens when tons of people shop at once!</li>
+                        <li><strong>Disaster Proof:</strong> Turn ON Multi-Region and Read Replicas. Your reliability goes way up because you have backups!</li>
+                        <li><strong>Budget Mode:</strong> Turn everything OFF and use low traffic. Super cheap but slow and less reliable.</li>
+                        <li><strong>The Traffic Jam:</strong> Crank traffic slider to MAX. Watch the database turn red because it's stressed!</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3><span class="emoji-icon">💡</span> Cool Ways to Use This</h3>
+                    <ul>
+                        <li><strong>Teach Your Team:</strong> Show coworkers how different choices affect the system in real-time</li>
+                        <li><strong>Plan Before Building:</strong> Test different setups before spending real money</li>
+                        <li><strong>Explain to Your Boss:</strong> Show why you need that expensive cache by demonstrating the speed improvement</li>
+                        <li><strong>Job Interviews:</strong> Impress interviewers by walking through tradeoffs visually</li>
+                        <li><strong>Learn Architecture:</strong> Play around and learn what each piece does without breaking anything real!</li>
+                        <li><strong>Client Presentations:</strong> Help non-technical clients understand why certain features cost more</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3><span class="emoji-icon">📱</span> Mobile Tips</h3>
+                    <p>On your phone? Tap the ☰ button at the bottom-left to open controls. Pinch to zoom the 3D scene. Tap any box to learn about it!</p>
+                </div>
+
+                <button class="close-help-btn" id="close-help-btn">Got it! Let me explore 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+        // =====================================================
+        // MOBILE DETECTION
+        // =====================================================
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+        // =====================================================
+        // CONFIGURATION & STATE
+        // =====================================================
+        const config = {
+            cdn: true,
+            cache: true,
+            queue: true,
+            multiRegion: false,
+            replicas: false,
+            rateLimiting: false,
+            traffic: 500,
+            payloadSize: 50,
+            cacheHitRate: 70
+        };
+
+        const nodeData = {
+            client: { pos: [-8, 0, 0], color: 0x3b82f6, label: 'Client', active: true },
+            cdn: { pos: [-5, 2, 0], color: 0x8b5cf6, label: 'CDN', active: true },
+            api: { pos: [-2, 0, 0], color: 0x06b6d4, label: 'API Gateway', active: true },
+            cache: { pos: [0, 2, 0], color: 0xf59e0b, label: 'Cache', active: true },
+            db: { pos: [2, 0, 0], color: 0x10b981, label: 'Database', active: true },
+            queue: { pos: [4, 2, 0], color: 0xec4899, label: 'Queue', active: true },
+            worker: { pos: [6, 0, 0], color: 0x6366f1, label: 'Worker', active: true },
+            analytics: { pos: [8, -2, 0], color: 0x14b8a6, label: 'Analytics', active: true },
+            apiRegion2: { pos: [-2, -2, 2], color: 0x06b6d4, label: 'API (R2)', active: false },
+            cacheRegion2: { pos: [0, 0, 2], color: 0xf59e0b, label: 'Cache (R2)', active: false },
+            dbReplica: { pos: [2, -2, 2], color: 0x10b981, label: 'DB Replica', active: false }
+        };
+
+        const componentDetails = {
+            client: {
+                role: 'User/Application Entry Point',
+                why: 'Represents end-users or services initiating requests. The starting point for all traffic in the system.',
+                pitfalls: ['Client-side caching inconsistencies', 'Retry storms during outages', 'Lack of backoff strategies'],
+                signals: ['Request rate', 'Error rate (4xx/5xx)', 'Client-side latency'],
+                mitigation: 'Implement exponential backoff, circuit breakers, and local caching strategies.'
+            },
+            cdn: {
+                role: 'Content Delivery Network',
+                why: 'Caches static assets and responses at edge locations close to users, reducing latency and origin load.',
+                pitfalls: ['Cache poisoning', 'Stale content after deployments', 'TTL misconfigurations'],
+                signals: ['Cache hit rate', 'Origin shield efficiency', 'Bandwidth savings'],
+                mitigation: 'Use versioned URLs, implement purge strategies, monitor cache effectiveness.'
+            },
+            api: {
+                role: 'API Gateway / Load Balancer',
+                why: 'Central entry point for requests, handles routing, authentication, rate limiting, and request transformation.',
+                pitfalls: ['Single point of failure', 'CPU bottlenecks under load', 'Timeout misconfigurations'],
+                signals: ['Request latency', 'Connection pool exhaustion', 'CPU/memory usage'],
+                mitigation: 'Deploy across availability zones, implement health checks, use connection pooling.'
+            },
+            cache: {
+                role: 'In-Memory Cache (Redis/Memcached)',
+                why: 'Stores frequently accessed data in memory to reduce database load and improve response times.',
+                pitfalls: ['Cache stampede', 'Memory eviction under pressure', 'Cold cache performance'],
+                signals: ['Hit/miss ratio', 'Eviction rate', 'Memory utilization'],
+                mitigation: 'Use cache warming, implement distributed locking, set appropriate TTLs.'
+            },
+            db: {
+                role: 'Primary Database',
+                why: 'Persistent storage for application data. Handles reads and writes with ACID guarantees.',
+                pitfalls: ['Connection pool saturation', 'Slow queries', 'Lock contention'],
+                signals: ['Query latency', 'Connection count', 'Replication lag'],
+                mitigation: 'Index optimization, query tuning, connection pooling, read replicas.'
+            },
+            queue: {
+                role: 'Message Queue (Kafka/RabbitMQ)',
+                why: 'Decouples synchronous processing, enables asynchronous workflows, and provides buffering under load.',
+                pitfalls: ['Message loss', 'Consumer lag', 'Poison messages'],
+                signals: ['Queue depth', 'Consumer lag', 'Message throughput'],
+                mitigation: 'Implement dead letter queues, monitor consumer health, use idempotent processing.'
+            },
+            worker: {
+                role: 'Background Worker/Processor',
+                why: 'Processes asynchronous tasks from the queue, handles batch jobs, and performs heavy computations.',
+                pitfalls: ['Worker crashes', 'Memory leaks', 'Task timeouts'],
+                signals: ['Task completion rate', 'Error rate', 'Processing time'],
+                mitigation: 'Implement retries, health checks, graceful shutdown, and resource limits.'
+            },
+            analytics: {
+                role: 'Analytics/Logging Pipeline',
+                why: 'Collects, aggregates, and stores metrics, logs, and events for monitoring and analysis.',
+                pitfalls: ['Data loss during spikes', 'Storage costs', 'Query performance'],
+                signals: ['Ingestion rate', 'Storage growth', 'Query latency'],
+                mitigation: 'Use sampling, implement data retention policies, optimize schema design.'
+            },
+            apiRegion2: {
+                role: 'API Gateway (Region 2)',
+                why: 'Provides geographic redundancy and lower latency for users in different regions.',
+                pitfalls: ['Data consistency across regions', 'Cross-region latency', 'Split-brain scenarios'],
+                signals: ['Regional latency', 'Failover time', 'Cross-region traffic'],
+                mitigation: 'Implement eventual consistency models, use regional routing, monitor replication lag.'
+            },
+            cacheRegion2: {
+                role: 'Cache (Region 2)',
+                why: 'Regional cache to reduce cross-region traffic and improve local response times.',
+                pitfalls: ['Cache invalidation across regions', 'Data staleness', 'Memory costs'],
+                signals: ['Regional hit rate', 'Cross-region sync lag', 'Memory usage'],
+                mitigation: 'Use cache invalidation protocols, monitor sync status, implement regional TTLs.'
+            },
+            dbReplica: {
+                role: 'Database Read Replica',
+                why: 'Offloads read traffic from primary database, improves read scalability and provides failover capability.',
+                pitfalls: ['Replication lag', 'Read-after-write consistency issues', 'Failover complexity'],
+                signals: ['Replication lag', 'Read throughput', 'Connection distribution'],
+                mitigation: 'Monitor lag closely, use read-your-writes patterns, automate failover procedures.'
+            }
+        };
+
+        // =====================================================
+        // SCENE SETUP
+        // =====================================================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0e27, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 14);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 8;
+        controls.maxDistance = 25;
+        controls.maxPolarAngle = Math.PI / 2 + 0.3;
+        controls.touches = {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.DOLLY_PAN
+        };
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x4a5568, 0.4);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0x6366f1, 1.5);
+        mainLight.position.set(5, 8, 5);
+        scene.add(mainLight);
+
+        const fillLight = new THREE.DirectionalLight(0x8b5cf6, 0.8);
+        fillLight.position.set(-5, 3, -5);
+        scene.add(fillLight);
+
+        const backLight = new THREE.PointLight(0x06b6d4, 1, 30);
+        backLight.position.set(0, 5, -8);
+        scene.add(backLight);
+
+        // Starfield background (reduced for mobile)
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = isMobile ? 400 : 800;
+        const starPositions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount * 3; i++) {
+            starPositions[i] = (Math.random() - 0.5) * 100;
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0x94a3b8, size: 0.05, transparent: true, opacity: 0.6 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+
+        // Post-processing (simplified for mobile)
+        const composer = new EffectComposer(renderer);
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        if (!isMobile) {
+            const bloomPass = new UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                0.6,
+                0.4,
+                0.85
+            );
+            composer.addPass(bloomPass);
+        }
+
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
+
+        // =====================================================
+        // NODES AND CONNECTIONS
+        // =====================================================
+        const nodes = {};
+        const nodeLabels = {};
+        const connections = [];
+        const packets = [];
+
+        function createNode(key, data) {
+            const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+            const material = new THREE.MeshStandardMaterial({
+                color: data.color,
+                emissive: data.color,
+                emissiveIntensity: 0.3,
+                metalness: 0.6,
+                roughness: 0.3
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(...data.pos);
+            mesh.userData = { key, label: data.label, originalColor: data.color };
+            scene.add(mesh);
+            nodes[key] = mesh;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            ctx.fillStyle = 'rgba(0,0,0,0)';
+            ctx.fillRect(0, 0, 256, 64);
+            ctx.font = 'bold 24px Inter, Arial';
+            ctx.fillStyle = '#e2e8f0';
+            ctx.textAlign = 'center';
+            ctx.fillText(data.label, 128, 40);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.set(data.pos[0], data.pos[1] + 1, data.pos[2]);
+            sprite.scale.set(2, 0.5, 1);
+            scene.add(sprite);
+            nodeLabels[key] = sprite;
+        }
+
+        function createConnection(from, to, color = 0x6366f1) {
+            const curve = new THREE.QuadraticBezierCurve3(
+                nodes[from].position.clone(),
+                new THREE.Vector3(
+                    (nodes[from].position.x + nodes[to].position.x) / 2,
+                    Math.max(nodes[from].position.y, nodes[to].position.y) + 1,
+                    (nodes[from].position.z + nodes[to].position.z) / 2
+                ),
+                nodes[to].position.clone()
+            );
+
+            const points = curve.getPoints(50);
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ 
+                color: color, 
+                transparent: true, 
+                opacity: 0.4,
+                linewidth: 2
+            });
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            connections.push({ from, to, line, curve, active: true });
+        }
+
+        Object.keys(nodeData).forEach(key => createNode(key, nodeData[key]));
+
+        function updateConnections() {
+            connections.forEach(conn => scene.remove(conn.line));
+            connections.length = 0;
+
+            createConnection('client', config.cdn ? 'cdn' : 'api', 0x6366f1);
+            
+            if (config.cdn) {
+                createConnection('cdn', 'api', 0x8b5cf6);
+            }
+
+            if (config.cache) {
+                createConnection('api', 'cache', 0x06b6d4);
+                createConnection('cache', 'db', 0xf59e0b);
+            } else {
+                createConnection('api', 'db', 0x06b6d4);
+            }
+
+            if (config.queue) {
+                createConnection('db', 'queue', 0x10b981);
+                createConnection('queue', 'worker', 0xec4899);
+                createConnection('worker', 'analytics', 0x6366f1);
+            } else {
+                createConnection('db', 'analytics', 0x10b981);
+            }
+
+            if (config.multiRegion) {
+                createConnection('api', 'apiRegion2', 0x3b82f6);
+                createConnection('apiRegion2', 'cacheRegion2', 0x06b6d4);
+                createConnection('cacheRegion2', 'dbReplica', 0xf59e0b);
+                createConnection('dbReplica', 'db', 0x10b981);
+            }
+
+            if (config.replicas && !config.multiRegion) {
+                createConnection('db', 'dbReplica', 0x10b981);
+            }
+        }
+
+        updateConnections();
+
+        // =====================================================
+        // PACKETS
+        // =====================================================
+        class Packet {
+            constructor(path, speed = 0.01, color = 0x6366f1) {
+                this.path = path;
+                this.progress = 0;
+                this.speed = speed;
+                this.color = color;
+
+                const geometry = new THREE.SphereGeometry(0.12, isMobile ? 8 : 16, isMobile ? 8 : 16);
+                const material = new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.8,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                this.mesh = new THREE.Mesh(geometry, material);
+                scene.add(this.mesh);
+            }
+
+            update() {
+                this.progress += this.speed;
+                if (this.progress >= 1) {
+                    this.progress = 0;
+                }
+
+                const currentSegment = Math.floor(this.progress * this.path.length);
+                const segmentProgress = (this.progress * this.path.length) % 1;
+
+                if (currentSegment < this.path.length - 1) {
+                    const conn = connections.find(c => 
+                        c.from === this.path[currentSegment] && 
+                        c.to === this.path[currentSegment + 1]
+                    );
+                    if (conn && conn.curve) {
+                        const point = conn.curve.getPoint(segmentProgress);
+                        this.mesh.position.copy(point);
+                    }
+                }
+            }
+
+            remove() {
+                scene.remove(this.mesh);
+            }
+        }
+
+        function generatePackets() {
+            packets.forEach(p => p.remove());
+            packets.length = 0;
+
+            const maxPackets = isMobile ? 15 : 30;
+            const packetCount = Math.min(Math.floor(config.traffic / 100), maxPackets);
+            const speed = config.rateLimiting ? 0.005 : 0.01;
+
+            let mainPath = ['client'];
+            if (config.cdn) mainPath.push('cdn');
+            mainPath.push('api');
+            if (config.cache) mainPath.push('cache');
+            mainPath.push('db');
+            if (config.queue) {
+                mainPath.push('queue', 'worker');
+            }
+            mainPath.push('analytics');
+
+            for (let i = 0; i < packetCount; i++) {
+                const delay = i * (1 / packetCount);
+                const packet = new Packet(mainPath, speed, 0x6366f1);
+                packet.progress = delay;
+                packets.push(packet);
+            }
+
+            if (config.multiRegion) {
+                const regionPath = ['api', 'apiRegion2', 'cacheRegion2', 'dbReplica', 'db'];
+                for (let i = 0; i < Math.min(packetCount / 2, 10); i++) {
+                    const packet = new Packet(regionPath, speed * 0.8, 0x8b5cf6);
+                    packet.progress = i * 0.1;
+                    packets.push(packet);
+                }
+            }
+        }
+
+        generatePackets();
+
+        // =====================================================
+        // METRICS
+        // =====================================================
+        function calculateMetrics() {
+            let latency = 20;
+            let cost = 50;
+            let reliability = 85;
+            let complexity = 20;
+
+            if (config.cdn) {
+                latency -= 10;
+                cost += 200;
+                reliability += 5;
+                complexity += 10;
+            }
+
+            if (config.cache) {
+                const cacheHitImpact = (config.cacheHitRate / 100) * 8;
+                latency -= cacheHitImpact;
+                cost += 150;
+                reliability += 3;
+                complexity += 12;
+            }
+
+            if (config.queue) {
+                latency += 5;
+                cost += 100;
+                reliability += 2;
+                complexity += 15;
+            }
+
+            if (config.multiRegion) {
+                latency += 5;
+                cost *= 2;
+                reliability += 10;
+                complexity += 20;
+            }
+
+            if (config.replicas) {
+                if (config.multiRegion) {
+                    latency += 5;
+                }
+                cost += 400;
+                reliability += 7;
+                complexity += 12;
+            }
+
+            if (config.rateLimiting) {
+                latency += 2;
+                cost += 50;
+                reliability += 4;
+                complexity += 8;
+            }
+
+            const trafficFactor = config.traffic / 500;
+            latency += Math.log(1 + trafficFactor) * 5;
+            cost += config.traffic * 0.001;
+            reliability -= Math.min(trafficFactor * 3, 15);
+
+            const payloadFactor = config.payloadSize / 50;
+            latency += payloadFactor * 2;
+            cost += payloadFactor * 10;
+
+            latency += 15;
+
+            latency = Math.max(5, Math.round(latency));
+            cost = Math.round(cost);
+            reliability = Math.max(0, Math.min(100, Math.round(reliability)));
+            complexity = Math.max(0, Math.min(100, Math.round(complexity)));
+
+            return { latency, cost, reliability, complexity };
+        }
+
+        function updateMetrics() {
+            const metrics = calculateMetrics();
+            
+            animateValue('metric-latency', metrics.latency, 'ms');
+            animateValue('metric-cost', metrics.cost, '$', true);
+            animateValue('metric-reliability', metrics.reliability, '/100');
+            animateValue('metric-complexity', metrics.complexity, '/100');
+        }
+
+        function animateValue(elementId, newValue, unit = '', isDollar = false) {
+            const element = document.getElementById(elementId);
+            const currentText = element.childNodes[0].textContent;
+            const currentValue = parseInt(currentText) || 0;
+
+            const duration = 500;
+            const start = performance.now();
+
+            function update(time) {
+                const elapsed = time - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const value = Math.round(currentValue + (newValue - currentValue) * eased);
+                
+                element.childNodes[0].textContent = isDollar ? `$${value}` : value;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // =====================================================
+        // UI INTERACTIONS
+        // =====================================================
+        function updateNodeVisibility() {
+            nodes.cdn.material.opacity = config.cdn ? 1 : 0.2;
+            nodes.cdn.material.transparent = !config.cdn;
+            nodeLabels.cdn.material.opacity = config.cdn ? 0.9 : 0.3;
+
+            nodes.cache.material.opacity = config.cache ? 1 : 0.2;
+            nodes.cache.material.transparent = !config.cache;
+            nodeLabels.cache.material.opacity = config.cache ? 0.9 : 0.3;
+
+            nodes.queue.material.opacity = config.queue ? 1 : 0.2;
+            nodes.queue.material.transparent = !config.queue;
+            nodeLabels.queue.material.opacity = config.queue ? 0.9 : 0.3;
+
+            nodes.worker.material.opacity = config.queue ? 1 : 0.2;
+            nodes.worker.material.transparent = !config.queue;
+            nodeLabels.worker.material.opacity = config.queue ? 0.9 : 0.3;
+
+            const showMultiRegion = config.multiRegion;
+            ['apiRegion2', 'cacheRegion2', 'dbReplica'].forEach(key => {
+                nodes[key].material.opacity = showMultiRegion ? 1 : 0.2;
+                nodes[key].material.transparent = !showMultiRegion;
+                nodeLabels[key].material.opacity = showMultiRegion ? 0.9 : 0.3;
+            });
+
+            if (!config.multiRegion && config.replicas) {
+                nodes.dbReplica.material.opacity = 1;
+                nodes.dbReplica.material.transparent = false;
+                nodeLabels.dbReplica.material.opacity = 0.9;
+            }
+        }
+
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-toggle').addEventListener('click', () => {
+            document.getElementById('control-panel').classList.toggle('mobile-open');
+        });
+
+        // Help modal
+        document.getElementById('help-btn').addEventListener('click', () => {
+            document.getElementById('help-modal').classList.add('show');
+        });
+
+        document.getElementById('close-help-btn').addEventListener('click', () => {
+            document.getElementById('help-modal').classList.remove('show');
+        });
+
+        document.getElementById('help-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'help-modal') {
+                document.getElementById('help-modal').classList.remove('show');
+            }
+        });
+
+        // Toggle switches
+        document.querySelectorAll('.toggle-switch').forEach(toggle => {
+            toggle.addEventListener('click', () => {
+                const isActive = toggle.dataset.state === 'true';
+                const newState = !isActive;
+                toggle.dataset.state = newState;
+                toggle.classList.toggle('active', newState);
+
+                const id = toggle.id;
+                if (id === 'toggle-cdn') config.cdn = newState;
+                else if (id === 'toggle-cache') config.cache = newState;
+                else if (id === 'toggle-queue') config.queue = newState;
+                else if (id === 'toggle-multiregion') config.multiRegion = newState;
+                else if (id === 'toggle-replicas') config.replicas = newState;
+                else if (id === 'toggle-ratelimit') config.rateLimiting = newState;
+
+                updateConnections();
+                updateNodeVisibility();
+                generatePackets();
+                updateMetrics();
+
+                if (isMobile) {
+                    document.getElementById('control-panel').classList.remove('mobile-open');
+                }
+            });
+        });
+
+        // Sliders
+        const trafficSlider = document.getElementById('traffic-slider');
+        const trafficValue = document.getElementById('traffic-value');
+        trafficSlider.addEventListener('input', (e) => {
+            config.traffic = parseInt(e.target.value);
+            trafficValue.textContent = config.traffic;
+            generatePackets();
+            updateMetrics();
+        });
+
+        const payloadSlider = document.getElementById('payload-slider');
+        const payloadValue = document.getElementById('payload-value');
+        payloadSlider.addEventListener('input', (e) => {
+            config.payloadSize = parseInt(e.target.value);
+            payloadValue.textContent = config.payloadSize >= 1024 
+                ? `${(config.payloadSize / 1024).toFixed(1)} MB` 
+                : `${config.payloadSize} KB`;
+            updateMetrics();
+        });
+
+        const cacheHitSlider = document.getElementById('cachehit-slider');
+        const cacheHitValue = document.getElementById('cachehit-value');
+        cacheHitSlider.addEventListener('input', (e) => {
+            config.cacheHitRate = parseInt(e.target.value);
+            cacheHitValue.textContent = `${config.cacheHitRate}%`;
+            updateMetrics();
+        });
+
+        // Presets
+        const presets = {
+            startup: { cdn: false, cache: false, queue: false, multiRegion: false, replicas: false, rateLimiting: false, traffic: 50, payloadSize: 20, cacheHitRate: 0 },
+            ecommerce: { cdn: true, cache: true, queue: true, multiRegion: false, replicas: true, rateLimiting: true, traffic: 3000, payloadSize: 100, cacheHitRate: 85 },
+            b2b: { cdn: true, cache: true, queue: true, multiRegion: true, replicas: true, rateLimiting: true, traffic: 800, payloadSize: 500, cacheHitRate: 70 },
+            latency: { cdn: true, cache: true, queue: false, multiRegion: true, replicas: true, rateLimiting: false, traffic: 1500, payloadSize: 10, cacheHitRate: 90 }
+        };
+
+        document.getElementById('preset-select').addEventListener('change', (e) => {
+            const preset = presets[e.target.value];
+            if (!preset) return;
+
+            Object.assign(config, preset);
+
+            document.getElementById('toggle-cdn').dataset.state = preset.cdn;
+            document.getElementById('toggle-cdn').classList.toggle('active', preset.cdn);
+            document.getElementById('toggle-cache').dataset.state = preset.cache;
+            document.getElementById('toggle-cache').classList.toggle('active', preset.cache);
+            document.getElementById('toggle-queue').dataset.state = preset.queue;
+            document.getElementById('toggle-queue').classList.toggle('active', preset.queue);
+            document.getElementById('toggle-multiregion').dataset.state = preset.multiRegion;
+            document.getElementById('toggle-multiregion').classList.toggle('active', preset.multiRegion);
+            document.getElementById('toggle-replicas').dataset.state = preset.replicas;
+            document.getElementById('toggle-replicas').classList.toggle('active', preset.replicas);
+            document.getElementById('toggle-ratelimit').dataset.state = preset.rateLimiting;
+            document.getElementById('toggle-ratelimit').classList.toggle('active', preset.rateLimiting);
+
+            trafficSlider.value = preset.traffic;
+            trafficValue.textContent = preset.traffic;
+            payloadSlider.value = preset.payloadSize;
+            payloadValue.textContent = preset.payloadSize >= 1024 
+                ? `${(preset.payloadSize / 1024).toFixed(1)} MB` 
+                : `${preset.payloadSize} KB`;
+            cacheHitSlider.value = preset.cacheHitRate;
+            cacheHitValue.textContent = `${preset.cacheHitRate}%`;
+
+            updateConnections();
+            updateNodeVisibility();
+            generatePackets();
+            updateMetrics();
+
+            if (isMobile) {
+                document.getElementById('control-panel').classList.remove('mobile-open');
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            camera.position.set(0, 4, 14);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        });
+
+        document.getElementById('assumptions-toggle').addEventListener('click', () => {
+            const content = document.getElementById('assumptions-content');
+            const isOpen = content.classList.contains('open');
+            content.classList.toggle('open');
+            document.querySelector('.assumptions-toggle span:first-child').textContent = isOpen ? '▶' : '▼';
+        });
+
+        // =====================================================
+        // RAYCASTING & INTERACTION
+        // =====================================================
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredNode = null;
+
+        function onMouseMove(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Object.values(nodes));
+
+            const tooltip = document.getElementById('tooltip');
+
+            if (intersects.length > 0 && !isMobile) {
+                const node = intersects[0].object;
+                if (hoveredNode !== node) {
+                    if (hoveredNode) {
+                        hoveredNode.material.emissiveIntensity = 0.3;
+                    }
+                    hoveredNode = node;
+                    node.material.emissiveIntensity = 0.8;
+
+                    const key = node.userData.key;
+                    const details = componentDetails[key];
+                    if (details) {
+                        document.getElementById('tooltip-title').textContent = node.userData.label;
+                        document.getElementById('tooltip-desc').textContent = details.role;
+                        document.getElementById('tooltip-hint').textContent = `💡 ${details.pitfalls[0]}`;
+                        tooltip.style.left = `${event.clientX + 15}px`;
+                        tooltip.style.top = `${event.clientY + 15}px`;
+                        tooltip.classList.add('visible');
+                    }
+                }
+            } else {
+                if (hoveredNode) {
+                    hoveredNode.material.emissiveIntensity = 0.3;
+                    hoveredNode = null;
+                }
+                tooltip.classList.remove('visible');
+            }
+        }
+
+        function onClick(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(Object.values(nodes));
+
+            if (intersects.length > 0) {
+                const node = intersects[0].object;
+                const key = node.userData.key;
+                const details = componentDetails[key];
+                if (details) {
+                    document.getElementById('drawer-title').textContent = node.userData.label;
+                    document.getElementById('drawer-role').textContent = details.role;
+                    document.getElementById('drawer-why').textContent = details.why;
+                    
+                    const pitfallsList = document.getElementById('drawer-pitfalls');
+                    pitfallsList.innerHTML = '';
+                    details.pitfalls.forEach(p => {
+                        const li = document.createElement('li');
+                        li.textContent = p;
+                        pitfallsList.appendChild(li);
+                    });
+
+                    const signalsList = document.getElementById('drawer-signals');
+                    signalsList.innerHTML = '';
+                    details.signals.forEach(s => {
+                        const li = document.createElement('li');
+                        li.textContent = s;
+                        signalsList.appendChild(li);
+                    });
+
+                    document.getElementById('drawer-mitigation').textContent = details.mitigation;
+
+                    document.getElementById('details-drawer').classList.add('open');
+                }
+            }
+        }
+
+        document.getElementById('close-drawer').addEventListener('click', () => {
+            document.getElementById('details-drawer').classList.remove('open');
+        });
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('click', onClick);
+
+        // Touch support for mobile
+        if (isMobile) {
+            renderer.domElement.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    const event = { clientX: touch.clientX, clientY: touch.clientY };
+                    onClick(event);
+                }
+            });
+        }
+
+        // =====================================================
+        // ANIMATION LOOP
+        // =====================================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            packets.forEach(packet => packet.update());
+
+            if (!isMobile) {
+                const time = Date.now() * 0.0001;
+                camera.position.x += Math.sin(time * 0.5) * 0.001;
+                camera.position.y += Math.cos(time * 0.3) * 0.001;
+                stars.rotation.y += 0.0001;
+            }
+
+            if (config.rateLimiting) {
+                const pulse = Math.sin(Date.now() * 0.003) * 0.2 + 0.5;
+                nodes.api.material.emissiveIntensity = 0.3 + pulse * 0.3;
+            }
+
+            if (config.traffic > 2000) {
+                const stress = Math.sin(Date.now() * 0.005) * 0.3 + 0.5;
+                nodes.db.material.color.setHex(0xff0000);
+                nodes.db.material.emissiveIntensity = 0.5 + stress * 0.5;
+            } else {
+                nodes.db.material.color.setHex(nodeData.db.color);
+                nodes.db.material.emissiveIntensity = 0.3;
+            }
+
+            controls.update();
+            composer.render();
+        }
+
+        animate();
+        updateMetrics();
+
+        // =====================================================
+        // RESIZE HANDLING
+        // =====================================================
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
